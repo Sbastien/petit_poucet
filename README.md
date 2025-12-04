@@ -1,5 +1,9 @@
 # Petit Poucet
 
+[![CI](https://github.com/Sbastien/petit_poucet/actions/workflows/ci.yml/badge.svg)](https://github.com/Sbastien/petit_poucet/actions/workflows/ci.yml)
+[![Gem Version](https://badge.fury.io/rb/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > *Le petit Pouçet les laissoit crier, sçachant bien par où il reviendroit à la maison ; car en marchant il avoit laissé tomber le long du chemin les petits cailloux blancs qu'il avoit dans ses poches.*
 >
 > — Charles Perrault, *Le Petit Poucet* (1697)
