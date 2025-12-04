@@ -5,12 +5,11 @@ require_relative 'lib/petit_poucet/version'
 Gem::Specification.new do |spec|
   spec.name          = 'petit_poucet'
   spec.version       = PetitPoucet::VERSION
-  spec.authors       = ['TeepTrak']
-  spec.email         = ['dev@teeptrak.com']
+  spec.authors       = ['Sébastien Loyer']
 
   spec.summary       = 'Modern breadcrumbs DSL for Rails'
   spec.description   = 'Minimal breadcrumbs gem with declarative DSL and action filtering'
-  spec.homepage      = 'https://github.com/TEEPTRAK-TEAM/petit_poucet'
+  spec.homepage      = 'https://github.com/Sbastien/petit_poucet'
   spec.license       = 'MIT'
   spec.required_ruby_version = '>= 3.0'
 

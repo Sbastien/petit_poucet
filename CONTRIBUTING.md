@@ -3,7 +3,7 @@
 ## Development Setup
 
 ```bash
-git clone https://github.com/your-org/petit_poucet.git
+git clone https://github.com/Sbastien/petit_poucet.git
 cd petit_poucet
 bundle install
 bundle exec rspec
