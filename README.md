@@ -1,14 +1,24 @@
-# Petit Poucet
+# Petit Poucet 🥖
 
-[![CI](https://img.shields.io/github/actions/workflow/status/Sbastien/petit_poucet/ci.yml?branch=main&label=CI)](https://github.com/Sbastien/petit_poucet/actions/workflows/ci.yml)
-[![Gem Version](https://img.shields.io/gem/v/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![gem version](https://img.shields.io/gem/v/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
+[![gem downloads](https://img.shields.io/gem/dt/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
+[![ci](https://img.shields.io/github/actions/workflow/status/Sbastien/petit_poucet/ci.yml?branch=main&label=ci)](https://github.com/Sbastien/petit_poucet/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![ruby](https://img.shields.io/badge/ruby-%3E%3D%203.0-red.svg)](https://www.ruby-lang.org/)
+[![rails](https://img.shields.io/badge/rails-%3E%3D%207.0-red.svg)](https://rubyonrails.org/)
 
-> *Le petit Pouçet les laissoit crier, sçachant bien par où il reviendroit à la maison ; car en marchant il avoit laissé tomber le long du chemin les petits cailloux blancs qu'il avoit dans ses poches.*
->
-> — Charles Perrault, *Le Petit Poucet* (1697)
+***Breadcrumbs for Rails, the simple way.***
 
-A minimal breadcrumbs gem for Rails. Like the clever boy from the fairy tale who left pebbles to find his way home, this gem helps users navigate back through your application.
+A lightweight, zero-dependency breadcrumbs gem for Ruby on Rails. Simple DSL, controller inheritance, and full view customization — help your users find their way back, one pebble at a time.
+
+## Features
+
+- 🪶 **Zero dependencies** — only Rails required
+- 🎯 **Simple DSL** — declare breadcrumbs in one line
+- 🔗 **Controller inheritance** — child controllers inherit parent breadcrumbs
+- 🎨 **Flexible rendering** — use the built-in helper or full custom views
+- ⚡ **Lazy evaluation** — lambdas for dynamic names and paths
+- 🎛️ **Action filtering** — `only` and `except` options for fine control
 
 ## Installation
 
@@ -123,3 +133,13 @@ end
 ## License
 
 MIT
+
+---
+
+## About the Name
+
+> *Le petit Pouçet les laissoit crier, sçachant bien par où il reviendroit à la maison ; car en marchant il avoit laissé tomber le long du chemin les petits cailloux blancs qu'il avoit dans ses poches.*
+>
+> — Charles Perrault, *Le Petit Poucet* (1697)
+
+Named after the French fairy tale "Le Petit Poucet" (Hop-o'-My-Thumb), where a clever boy leaves a trail of pebbles to find his way home.
