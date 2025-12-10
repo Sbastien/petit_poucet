@@ -109,4 +109,21 @@ RSpec.describe PetitPoucet::Crumb do
       expect(crumb.applies_to_action?('index')).to be true
     end
   end
+
+  describe '#clear?' do
+    it 'returns false by default' do
+      expect(described_class.new('Home', '/').clear?).to be false
+    end
+
+    it 'returns true when clear: true' do
+      expect(described_class.new(clear: true).clear?).to be true
+    end
+
+    it 'works with action filters' do
+      crumb = described_class.new(clear: true, only: :edit)
+      expect(crumb.clear?).to be true
+      expect(crumb.applies_to_action?('edit')).to be true
+      expect(crumb.applies_to_action?('index')).to be false
+    end
+  end
 end

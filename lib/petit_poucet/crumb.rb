@@ -4,8 +4,9 @@ module PetitPoucet
   class Crumb
     attr_reader :name, :path
 
-    def initialize(name, path = nil, **options)
+    def initialize(name = nil, path = nil, clear: false, **options)
       @name = name
+      @clear = clear
 
       if path.is_a?(Hash)
         options = path
@@ -16,6 +17,10 @@ module PetitPoucet
 
       @only_actions = options[:only] && Array(options[:only]).map(&:to_s)
       @except_actions = options[:except] && Array(options[:except]).map(&:to_s)
+    end
+
+    def clear?
+      @clear
     end
 
     def resolve_name(context)
