@@ -17,12 +17,40 @@ module PetitPoucet
       # @param options [Hash] Options including :only and :except
       #
       def breadcrumb(name, path = nil, **options)
-        self._breadcrumb_definitions = _breadcrumb_definitions + [Crumb.new(name, path, **options)]
+        _add_breadcrumb_definition(Crumb.new(name, path, **options))
       end
 
       # Clear all inherited breadcrumbs
-      def clear_breadcrumbs
-        self._breadcrumb_definitions = []
+      #
+      # @param options [Hash] Options including :only and :except to conditionally clear
+      #
+      def clear_breadcrumbs(**options)
+        if options.empty?
+          self._breadcrumb_definitions = []
+        else
+          _add_breadcrumb_definition(Crumb.new(clear: true, **options))
+        end
+      end
+
+      # Group multiple breadcrumbs with shared options
+      #
+      # @param options [Hash] Options including :only and :except applied to all breadcrumbs in block
+      # @yield Block containing breadcrumb declarations
+      #
+      # @example
+      #   breadcrumb_group only: %i[index show edit] do
+      #     breadcrumb 'Home', '/'
+      #     breadcrumb 'Section', '/section'
+      #   end
+      #
+      def breadcrumb_group(**options, &block)
+        BreadcrumbGroupBuilder.new(self, options).instance_eval(&block)
+      end
+
+      private
+
+      def _add_breadcrumb_definition(crumb)
+        self._breadcrumb_definitions = _breadcrumb_definitions + [crumb]
       end
     end
 
@@ -52,7 +80,12 @@ module PetitPoucet
     private
 
     def resolve_breadcrumbs
-      crumbs = _breadcrumb_definitions.select { |c| c.applies_to_action?(action_name) }
+      crumbs = []
+      _breadcrumb_definitions.each do |crumb|
+        next unless crumb.applies_to_action?(action_name)
+
+        crumb.clear? ? crumbs.clear : crumbs << crumb
+      end
       crumbs += @runtime_breadcrumbs || []
       crumbs.map { |crumb| { name: crumb.resolve_name(self), path: crumb.resolve_path(self) } }
     end
