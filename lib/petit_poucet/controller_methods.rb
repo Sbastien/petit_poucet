@@ -77,6 +77,8 @@ module PetitPoucet
       @breadcrumbs ||= resolve_breadcrumbs
     end
 
+    private
+
     def resolve_breadcrumbs
       crumbs = []
       _breadcrumb_definitions.each do |crumb|
