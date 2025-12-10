@@ -48,6 +48,262 @@ RSpec.describe PetitPoucet::ControllerMethods do
 
       expect(child_class._breadcrumb_definitions.map(&:name)).to eq(['Admin'])
     end
+
+    it 'clears breadcrumbs only for specified actions with :only' do
+      parent_class = Class.new(base_controller_class) { breadcrumb 'Home', '/' }
+      child_class = Class.new(parent_class) do
+        clear_breadcrumbs only: :edit
+        breadcrumb 'Child', '/child'
+      end
+
+      controller = child_class.new
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(%w[Home Child])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Child'])
+    end
+
+    it 'clears breadcrumbs except for specified actions with :except' do
+      parent_class = Class.new(base_controller_class) { breadcrumb 'Home', '/' }
+      child_class = Class.new(parent_class) do
+        clear_breadcrumbs except: :index
+        breadcrumb 'Child', '/child'
+      end
+
+      controller = child_class.new
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(%w[Home Child])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Child'])
+    end
+  end
+
+  describe '.breadcrumb_group' do
+    it 'applies :only option to all breadcrumbs in block' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb_group only: %i[edit update] do
+          breadcrumb 'Edit Section', '/edit-section'
+          breadcrumb 'Form', '/form'
+        end
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs).to be_empty
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Edit Section', 'Form'])
+    end
+
+    it 'applies :except option to all breadcrumbs in block' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb_group except: :index do
+          breadcrumb 'Details', '/details'
+          breadcrumb 'Info', '/info'
+        end
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs).to be_empty
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'show'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(%w[Details Info])
+    end
+
+    it 'allows individual breadcrumbs to override group options' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb_group only: %i[edit update] do
+          breadcrumb 'Common', '/common'
+          breadcrumb 'Edit Only', '/edit-only', only: :edit
+        end
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Common', 'Edit Only'])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'update'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Common'])
+    end
+
+    it 'can be nested and merges options' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb_group except: :index do
+          breadcrumb 'Outer', '/outer'
+          breadcrumb_group only: %i[edit update] do
+            breadcrumb 'Inner', '/inner'
+          end
+        end
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'show'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Outer'])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(%w[Outer Inner])
+
+      # Inner should still respect parent's except: :index
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs).to be_empty
+    end
+
+    it 'merges :only options with intersection' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb_group only: %i[edit update destroy] do
+          breadcrumb 'Group', '/group'
+          breadcrumb 'Edit Only', '/edit-only', only: %i[edit show]
+        end
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'edit'
+      # 'Edit Only' should appear: intersection of [edit, update, destroy] & [edit, show] = [edit]
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Group', 'Edit Only'])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'update'
+      # 'Edit Only' should NOT appear: update is not in the intersection
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Group'])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'show'
+      # Neither should appear: show is not in group's only
+      expect(controller.breadcrumbs).to be_empty
+    end
+
+    it 'merges :except options with union' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb_group except: :index do
+          breadcrumb 'Group', '/group'
+          breadcrumb 'Not Destroy', '/not-destroy', except: :destroy
+        end
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'show'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Group', 'Not Destroy'])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'index'
+      # Both excluded by group's except: :index
+      expect(controller.breadcrumbs).to be_empty
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'destroy'
+      # 'Not Destroy' excluded by its own except: :destroy (union with :index)
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Group'])
+    end
+
+    it 'can be combined with regular breadcrumbs' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb 'Home', '/'
+        breadcrumb_group only: :edit do
+          breadcrumb 'Edit Section', '/edit-section'
+        end
+        breadcrumb 'Footer', '/footer'
+      end
+
+      controller = controller_class.new
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(%w[Home Footer])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Home', 'Edit Section', 'Footer'])
+    end
+
+    it 'supports clear_breadcrumbs inside group' do
+      parent_class = Class.new(base_controller_class) { breadcrumb 'Home', '/' }
+      child_class = Class.new(parent_class) do
+        breadcrumb_group only: :edit do
+          clear_breadcrumbs
+          breadcrumb 'Edit Only', '/edit-only'
+        end
+      end
+
+      controller = child_class.new
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Home'])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Edit Only'])
+    end
+  end
+
+  describe 'real-world scenarios' do
+    it 'handles typical CRUD controller setup' do
+      controller_class = Class.new(base_controller_class) do
+        breadcrumb 'Articles', '/articles'
+
+        breadcrumb_group only: %i[show edit update destroy] do
+          breadcrumb -> { @article&.title || 'Article' }, -> { "/articles/#{@article&.id}" }
+        end
+
+        breadcrumb_group only: %i[edit update] do
+          breadcrumb 'Edit'
+        end
+
+        breadcrumb 'New Article', only: %i[new create]
+      end
+
+      controller = controller_class.new
+
+      # Index
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Articles'])
+
+      # Show
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.instance_variable_set(:@article, double(title: 'My Post', id: 1))
+      controller.action_name = 'show'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Articles', 'My Post'])
+
+      # Edit
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Articles', 'My Post', 'Edit'])
+
+      # New
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.instance_variable_set(:@article, nil)
+      controller.action_name = 'new'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Articles', 'New Article'])
+    end
+
+    it 'handles admin namespace with cleared parent breadcrumbs' do
+      app_controller = Class.new(base_controller_class) { breadcrumb 'Home', '/' }
+      admin_controller = Class.new(app_controller) do
+        clear_breadcrumbs
+        breadcrumb 'Admin', '/admin'
+      end
+      admin_users_controller = Class.new(admin_controller) do
+        breadcrumb 'Users', '/admin/users'
+        breadcrumb_group only: %i[edit update] do
+          breadcrumb 'Edit User'
+        end
+      end
+
+      controller = admin_users_controller.new
+
+      controller.action_name = 'index'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(%w[Admin Users])
+
+      controller.instance_variable_set(:@breadcrumbs, nil)
+      controller.action_name = 'edit'
+      expect(controller.breadcrumbs.map { _1[:name] }).to eq(['Admin', 'Users', 'Edit User'])
+    end
   end
 
   describe '#breadcrumb (instance method)' do
