@@ -71,12 +71,38 @@ breadcrumb -> { @article.title }
 
 ### Runtime Breadcrumbs
 
+You can also add breadcrumbs at runtime in actions or `before_action` callbacks:
+
 ```ruby
 def show
   @article = Article.find(params[:id])
   breadcrumb @article.title, article_path(@article)
   breadcrumb "Details"  # No link
 end
+```
+
+#### Combining Declarative and Runtime
+
+Use declarative breadcrumbs for general structure and runtime for action-specific additions:
+
+```ruby
+class ArticlesController < ApplicationController
+  breadcrumb "Articles", :articles_path
+
+  def show
+    @article = Article.find(params[:id])
+    breadcrumb @article.title, article_path(@article)
+    breadcrumb @article.category.name, category_path(@article.category) if @article.category
+  end
+
+  def edit
+    @article = Article.find(params[:id])
+    breadcrumb @article.title, article_path(@article)
+    breadcrumb "Edit"
+  end
+end
+# show → Articles → My Article → Tech (if category exists)
+# edit → Articles → My Article → Edit
 ```
 
 ### View Rendering
