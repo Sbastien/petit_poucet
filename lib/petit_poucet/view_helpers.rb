@@ -61,5 +61,31 @@ module PetitPoucet
 
       content_tag(:nav, safe_join(items, separator.html_safe), class: css_class)
     end
+
+    # Render breadcrumbs as JSON-LD structured data for SEO
+    #
+    # @return [ActiveSupport::SafeBuffer, nil] Script tag with JSON-LD or nil if no breadcrumbs
+    #
+    # @example In layout head
+    #   <%= breadcrumb_json_ld %>
+    #
+    # @see https://schema.org/BreadcrumbList
+    #
+    def breadcrumb_json_ld
+      return if breadcrumbs.empty?
+
+      items = breadcrumb_trail.each_with_index.map { |crumb, index| json_ld_item(crumb, index) }
+      json_ld = { '@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => items }
+
+      content_tag(:script, json_ld.to_json.html_safe, type: 'application/ld+json')
+    end
+
+    private
+
+    def json_ld_item(crumb, index)
+      item = { '@type' => 'ListItem', 'position' => index + 1, 'name' => crumb.name }
+      item['item'] = url_for(crumb.path) if crumb.path.present? && !crumb.current?
+      item
+    end
   end
 end

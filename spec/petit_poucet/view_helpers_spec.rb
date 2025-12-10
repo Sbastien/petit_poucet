@@ -120,4 +120,82 @@ RSpec.describe PetitPoucet::ViewHelpers do
       expect(html).not_to include('<a href="">No Link</a>')
     end
   end
+
+  describe '#breadcrumb_json_ld' do
+    before do
+      allow(view).to receive(:url_for) { |path| "https://example.com#{path}" }
+    end
+
+    it 'returns nil when no breadcrumbs' do
+      view.breadcrumbs = []
+      expect(view.breadcrumb_json_ld).to be_nil
+    end
+
+    it 'renders JSON-LD script tag' do
+      view.breadcrumbs = [{ name: 'Home', path: '/' }]
+
+      html = view.breadcrumb_json_ld
+      expect(html).to include('<script type="application/ld+json">')
+      expect(html).to include('</script>')
+    end
+
+    it 'includes schema.org context and type' do
+      view.breadcrumbs = [{ name: 'Home', path: '/' }]
+
+      html = view.breadcrumb_json_ld
+      expect(html).to include('"@context":"https://schema.org"')
+      expect(html).to include('"@type":"BreadcrumbList"')
+    end
+
+    it 'renders breadcrumbs as ListItem elements' do
+      view.breadcrumbs = [
+        { name: 'Home', path: '/' },
+        { name: 'Articles', path: '/articles' }
+      ]
+
+      html = view.breadcrumb_json_ld
+      json = JSON.parse(html.match(%r{<script[^>]*>(.+)</script>})[1])
+
+      expect(json['itemListElement'].size).to eq(2)
+      expect(json['itemListElement'][0]).to include(
+        '@type' => 'ListItem',
+        'position' => 1,
+        'name' => 'Home',
+        'item' => 'https://example.com/'
+      )
+      expect(json['itemListElement'][1]).to include(
+        '@type' => 'ListItem',
+        'position' => 2,
+        'name' => 'Articles'
+      )
+    end
+
+    it 'does not include item URL for current breadcrumb' do
+      view.breadcrumbs = [
+        { name: 'Home', path: '/' },
+        { name: 'Current', path: '/current' }
+      ]
+
+      html = view.breadcrumb_json_ld
+      json = JSON.parse(html.match(%r{<script[^>]*>(.+)</script>})[1])
+
+      expect(json['itemListElement'][0]).to have_key('item')
+      expect(json['itemListElement'][1]).not_to have_key('item')
+    end
+
+    it 'does not include item URL for breadcrumbs without path' do
+      view.breadcrumbs = [
+        { name: 'Home', path: '/' },
+        { name: 'No Link', path: nil },
+        { name: 'Current', path: nil }
+      ]
+
+      html = view.breadcrumb_json_ld
+      json = JSON.parse(html.match(%r{<script[^>]*>(.+)</script>})[1])
+
+      expect(json['itemListElement'][0]).to have_key('item')
+      expect(json['itemListElement'][1]).not_to have_key('item')
+      expect(json['itemListElement'][2]).not_to have_key('item')
+    end
+  end
 end

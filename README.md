@@ -134,6 +134,24 @@ end
 </nav>
 ```
 
+#### JSON-LD for SEO
+
+Add structured data to help search engines display breadcrumbs in results:
+
+```erb
+<head>
+  <%= breadcrumb_json_ld %>
+</head>
+```
+
+Generates [schema.org BreadcrumbList](https://schema.org/BreadcrumbList):
+
+```html
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://example.com/"},{"@type":"ListItem","position":2,"name":"Articles","item":"https://example.com/articles"},{"@type":"ListItem","position":3,"name":"My Article"}]}
+</script>
+```
+
 ### CrumbPresenter
 
 | Method     | Description              |

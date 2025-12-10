@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `breadcrumb_group` to apply shared `only:`/`except:` filters to multiple breadcrumbs
 - Conditional `clear_breadcrumbs` with `only:` and `except:` options
 - Nested groups with intelligent option merging (intersection for `:only`, union for `:except`)
+- `breadcrumb_json_ld` view helper for SEO structured data (schema.org BreadcrumbList)
 
 ## [1.0.0] - 2025-12-03
 
