@@ -3,127 +3,79 @@
 require 'spec_helper'
 
 RSpec.describe PetitPoucet::Crumb do
-  let(:context) do
-    double('Controller',
-           current_user: double(name: 'John'),
-           article_path: '/articles/1',
-           article_name: 'My Article')
-  end
-
-  describe '#resolve_name' do
-    it 'returns string as-is' do
-      expect(described_class.new('Home').resolve_name(context)).to eq('Home')
-    end
-
-    it 'evaluates proc in context' do
-      crumb = described_class.new(-> { current_user.name })
-      expect(crumb.resolve_name(context)).to eq('John')
-    end
-
-    it 'calls symbol as method on context' do
-      expect(described_class.new(:article_name).resolve_name(context)).to eq('My Article')
-    end
-
-    it 'converts other types to string' do
-      expect(described_class.new(123).resolve_name(context)).to eq('123')
-    end
-
-    it 'handles empty string' do
-      expect(described_class.new('').resolve_name(context)).to eq('')
-    end
-
-    it 'handles html safe strings' do
-      name = '<i class="fa fa-home"></i>Home'.html_safe
-      expect(described_class.new(name).resolve_name(context)).to eq(name)
-    end
-  end
-
-  describe '#resolve_path' do
-    it 'returns nil when path is nil' do
-      expect(described_class.new('Home', nil).resolve_path(context)).to be_nil
-    end
-
-    it 'returns string as-is' do
-      expect(described_class.new('Home', '/').resolve_path(context)).to eq('/')
-    end
-
-    it 'evaluates proc in context' do
-      crumb = described_class.new('Article', -> { article_path })
-      expect(crumb.resolve_path(context)).to eq('/articles/1')
-    end
-
-    it 'calls symbol as method on context' do
-      expect(described_class.new('Article', :article_path).resolve_path(context)).to eq('/articles/1')
-    end
-
-    it 'handles empty string path' do
-      expect(described_class.new('Home', '').resolve_path(context)).to eq('')
-    end
-  end
-
-  describe '#applies_to_action?' do
-    it 'applies to any action without filters' do
+  describe '#initialize' do
+    it 'stores name and path' do
       crumb = described_class.new('Home', '/')
-      expect(crumb.applies_to_action?('index')).to be true
-      expect(crumb.applies_to_action?('show')).to be true
+
+      expect(crumb.name).to eq('Home')
+      expect(crumb.path).to eq('/')
     end
 
-    it 'applies only to specified actions with only filter' do
-      crumb = described_class.new('Edit', '/edit', only: %i[edit update])
-      expect(crumb.applies_to_action?('edit')).to be true
-      expect(crumb.applies_to_action?('show')).to be false
+    it 'allows nil path' do
+      crumb = described_class.new('Current')
+
+      expect(crumb.name).to eq('Current')
+      expect(crumb.path).to be_nil
     end
 
-    it 'handles single action in only filter' do
-      crumb = described_class.new('New', '/new', only: :new)
-      expect(crumb.applies_to_action?('new')).to be true
-      expect(crumb.applies_to_action?('create')).to be false
+    it 'freezes name and path strings' do
+      crumb = described_class.new('Home', '/')
+
+      expect(crumb.name).to be_frozen
+      expect(crumb.path).to be_frozen
     end
 
-    it 'excludes specified actions with except filter' do
-      crumb = described_class.new('List', '/list', except: :index)
-      expect(crumb.applies_to_action?('index')).to be false
-      expect(crumb.applies_to_action?('show')).to be true
+    it 'converts name to string' do
+      crumb = described_class.new(:home, '/home')
+
+      expect(crumb.name).to eq('home')
     end
 
-    it 'handles string action names in only filter' do
-      crumb = described_class.new('Edit', '/edit', only: %w[edit update])
-      expect(crumb.applies_to_action?('edit')).to be true
-      expect(crumb.applies_to_action?('show')).to be false
+    it 'raises ArgumentError when name is nil' do
+      expect { described_class.new(nil, '/') }.to raise_error(ArgumentError, /name cannot be nil or empty/)
     end
 
-    it 'handles mixed symbol/string in except filter' do
-      crumb = described_class.new('List', '/list', except: [:index, 'destroy'])
-      expect(crumb.applies_to_action?('index')).to be false
-      expect(crumb.applies_to_action?('destroy')).to be false
-      expect(crumb.applies_to_action?('show')).to be true
+    it 'raises ArgumentError when name is empty string' do
+      expect { described_class.new('', '/') }.to raise_error(ArgumentError, /name cannot be nil or empty/)
     end
 
-    it 'handles empty only array' do
-      crumb = described_class.new('Never', '/never', only: [])
-      expect(crumb.applies_to_action?('index')).to be false
-    end
-
-    it 'handles empty except array' do
-      crumb = described_class.new('Always', '/always', except: [])
-      expect(crumb.applies_to_action?('index')).to be true
+    it 'raises ArgumentError when name is blank' do
+      expect { described_class.new('   ', '/') }.to raise_error(ArgumentError, /name cannot be nil or empty/)
     end
   end
 
-  describe '#clear?' do
-    it 'returns false by default' do
-      expect(described_class.new('Home', '/').clear?).to be false
+  describe '#to_h' do
+    it 'converts to hash' do
+      crumb = described_class.new('Home', '/')
+
+      expect(crumb.to_h).to eq({ name: 'Home', path: '/' })
     end
 
-    it 'returns true when clear: true' do
-      expect(described_class.new(clear: true).clear?).to be true
+    it 'includes nil path' do
+      crumb = described_class.new('Current')
+
+      expect(crumb.to_h).to eq({ name: 'Current', path: nil })
+    end
+  end
+
+  describe '#==' do
+    let(:crumb) { described_class.new('Home', '/') }
+
+    it 'equals another crumb with same values' do
+      other = described_class.new('Home', '/')
+
+      expect(crumb).to eq(other)
     end
 
-    it 'works with action filters' do
-      crumb = described_class.new(clear: true, only: :edit)
-      expect(crumb.clear?).to be true
-      expect(crumb.applies_to_action?('edit')).to be true
-      expect(crumb.applies_to_action?('index')).to be false
+    it 'differs from crumb with different values' do
+      expect(crumb).not_to eq(described_class.new('Other', '/'))
+      expect(crumb).not_to eq(described_class.new('Home', '/other'))
+    end
+
+    it 'differs from other types' do
+      expect(crumb).not_to eq({ name: 'Home', path: '/' })
+      expect(crumb).not_to eq('Home')
+      expect(crumb).not_to eq(nil)
     end
   end
 end

@@ -1,30 +1,30 @@
-# Petit Poucet 🥖
+# Petit Poucet
 
 [![gem version](https://img.shields.io/gem/v/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
 [![gem downloads](https://img.shields.io/gem/dt/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
 [![ci](https://img.shields.io/github/actions/workflow/status/Sbastien/petit_poucet/ci.yml?branch=main&label=ci)](https://github.com/Sbastien/petit_poucet/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/Sbastien/petit_poucet)
 [![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![ruby](https://img.shields.io/badge/ruby-%3E%3D%203.0-red.svg)](https://www.ruby-lang.org/)
+[![ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-red.svg)](https://www.ruby-lang.org/)
 [![rails](https://img.shields.io/badge/rails-%3E%3D%207.0-red.svg)](https://rubyonrails.org/)
 
 ***Breadcrumbs for Rails, the simple way.***
 
-A lightweight, zero-dependency breadcrumbs gem for Ruby on Rails. Simple DSL, controller inheritance, and full view customization — help your users find their way back, one pebble at a time.
+A lightweight, zero-dependency breadcrumbs gem for Ruby on Rails. Simple block-based API, controller inheritance, and full view customization.
 
 ## Features
 
-- 🪶 **Zero dependencies** — only Rails required
-- 🎯 **Simple DSL** — declare breadcrumbs in one line
-- 🔗 **Controller inheritance** — child controllers inherit parent breadcrumbs
-- 🎨 **Flexible rendering** — use the built-in helper or full custom views
-- ⚡ **Lazy evaluation** — lambdas for dynamic names and paths
-- 🎛️ **Action filtering** — `only` and `except` options for fine control
-- 📦 **Grouping** — apply filters to multiple breadcrumbs at once
+- **Zero dependencies** — only Rails required
+- **Block-based API** — flexible breadcrumb building with a Trail object
+- **Controller inheritance** — child controllers inherit parent breadcrumbs
+- **Flexible rendering** — built-in helpers or full custom views
+- **Lazy evaluation** — blocks evaluated after `before_action` callbacks
+- **SEO ready** — JSON-LD structured data helper
 
 ## Installation
 
 ```ruby
-gem "petit_poucet"
+gem "petit_poucet", "~> 2.0"
 ```
 
 ## Usage
@@ -33,90 +33,115 @@ gem "petit_poucet"
 
 ```ruby
 class ApplicationController < ActionController::Base
-  breadcrumb -> { t("home") }, :root_path
-end
-
-class ArticlesController < ApplicationController
-  breadcrumb "Articles", :articles_path
-  breadcrumb -> { @article.title }, only: [:show, :edit, :update]
-
-  def show
-    @article = Article.find(params[:id])
+  breadcrumbs do |trail|
+    trail.add t("home"), root_path
   end
 end
-```
 
-### DSL Options
-
-```ruby
-# Static
-breadcrumb "Dashboard", :dashboard_path
-
-# Dynamic name
-breadcrumb -> { t("breadcrumbs.home") }, :root_path
-
-# Dynamic path
-breadcrumb "Profile", -> { user_path(current_user) }
-
-# Action filtering
-breadcrumb "Edit", :edit_article_path, only: [:edit, :update]
-breadcrumb "Details", :articles_path, except: :index
-
-# Action filtering without path
-breadcrumb "Current", only: :show
-
-# No link (current page)
-breadcrumb -> { @article.title }
-```
-
-### Runtime Breadcrumbs
-
-You can also add breadcrumbs at runtime in actions or `before_action` callbacks:
-
-```ruby
-def show
-  @article = Article.find(params[:id])
-  breadcrumb @article.title, article_path(@article)
-  breadcrumb "Details"  # No link
-end
-```
-
-#### Combining Declarative and Runtime
-
-Use declarative breadcrumbs for general structure and runtime for action-specific additions:
-
-```ruby
 class ArticlesController < ApplicationController
-  breadcrumb "Articles", :articles_path
+  breadcrumbs do |trail|
+    trail.add "Articles", articles_path
+    trail.add @article.title, article_path(@article) if @article
+    trail.add "Edit" if action_name.in?(%w[edit update])
+  end
 
   def show
     @article = Article.find(params[:id])
-    breadcrumb @article.title, article_path(@article)
-    breadcrumb @article.category.name, category_path(@article.category) if @article.category
   end
 
   def edit
     @article = Article.find(params[:id])
-    breadcrumb @article.title, article_path(@article)
-    breadcrumb "Edit"
   end
 end
-# show → Articles → My Article → Tech (if category exists)
-# edit → Articles → My Article → Edit
+```
+
+### Trail Methods
+
+The trail object provides methods to build and manipulate breadcrumbs:
+
+```ruby
+breadcrumbs do |trail|
+  trail.add "Name", "/path"        # Append to end
+  trail.prepend "First", "/first"  # Insert at beginning
+  trail.clear                      # Remove all breadcrumbs
+end
+```
+
+| Method | Description |
+|--------|-------------|
+| `add(name, path = nil)` | Append breadcrumb to end |
+| `prepend(name, path = nil)` | Insert breadcrumb at beginning |
+| `insert_after(target, name, path)` | Insert after named breadcrumb |
+| `insert_before(target, name, path)` | Insert before named breadcrumb |
+| `replace(target, name, path)` | Replace breadcrumb by name |
+| `remove(name)` | Remove breadcrumb by name |
+| `find(name)` | Find breadcrumb by name |
+| `include?(name)` | Check if breadcrumb exists |
+| `clear` | Remove all breadcrumbs |
+| `size`, `empty?`, `each`, `first`, `last` | Enumerable methods |
+
+### Action-Level Manipulation
+
+You can also manipulate breadcrumbs within controller actions:
+
+```ruby
+def preview
+  @article = Article.find(params[:id])
+
+  # Direct calls
+  breadcrumbs.clear
+  breadcrumbs.add "Preview", preview_path
+
+  # Or block syntax (same result)
+  breadcrumbs do |trail|
+    trail.clear
+    trail.add "Preview", preview_path
+  end
+end
+```
+
+### Action Filtering
+
+Use `only:` and `except:` options to filter blocks by action (like `before_action`):
+
+```ruby
+breadcrumbs do |trail|
+  trail.add "Articles", articles_path
+end
+
+breadcrumbs only: %i[show edit update] do |trail|
+  trail.add @article.title, article_path(@article)
+end
+
+breadcrumbs only: %i[edit update] do |trail|
+  trail.add "Edit"
+end
+
+breadcrumbs except: :index do |trail|
+  trail.add "Details"
+end
+```
+
+### Conditional Breadcrumbs
+
+You can also use Ruby conditionals inside blocks:
+
+```ruby
+breadcrumbs do |trail|
+  trail.add "Articles", articles_path
+
+  # Skip entirely for some actions
+  next if action_name == "index"
+
+  # Conditional breadcrumbs
+  trail.add @article.title if @article
+  trail.add @article.category.name if @article&.category
+end
 ```
 
 ### View Rendering
 
-#### Simple (built-in helper)
-
-```erb
-<%= render_breadcrumbs %>
-<%# => <nav class="breadcrumb"><a href="/">Home</a> / Articles / My Article</nav> %>
-
-<%= render_breadcrumbs(class: "my-breadcrumb", separator: " > ") %>
-```
-
-#### Custom (full control)
+Use `breadcrumb_trail` to iterate over breadcrumbs. Each crumb has `name`, `path`, and `current?`:
 
 ```erb
 <nav aria-label="Breadcrumb">
@@ -134,166 +159,154 @@ end
 </nav>
 ```
 
+#### Page Title
+
+```erb
+<title><%= breadcrumb_title(reverse: true) %></title>
+<%# => "My Article | Articles | Home" %>
+```
+
+#### JSON-LD for SEO
+
+```erb
+<%= breadcrumb_json_ld %>
+<%# => <script type="application/ld+json">{"@context":"https://schema.org",...}</script> %>
+```
+
+### View Helpers
+
+| Helper | Description |
+|--------|-------------|
+| `breadcrumb_trail` | Yields each crumb, or returns array of CrumbPresenter |
+| `breadcrumb_names` | Returns `["Home", "Articles"]` |
+| `breadcrumb_title(separator:, reverse:)` | Returns string for `<title>` tag |
+| `breadcrumb_json_ld(base_url:)` | Returns JSON-LD script tag for SEO |
+
 ### CrumbPresenter
-
-| Method     | Description              |
-|------------|--------------------------|
-| `name`     | Display text             |
-| `path`     | URL (can be nil)         |
-| `current?` | `true` if last breadcrumb |
-| `to_s`     | Returns `name`           |
-
-### Clearing Inherited Breadcrumbs
-
-```ruby
-class AdminController < ApplicationController
-  clear_breadcrumbs
-  breadcrumb "Admin", :admin_root_path
-end
-```
-
-#### Conditional Clearing
-
-Clear inherited breadcrumbs only for specific actions:
-
-```ruby
-class Admin::ArticlesController < AdminController
-  # Start fresh on :new and :create actions only
-  clear_breadcrumbs only: %i[new create]
-  breadcrumb "New Article", only: %i[new create]
-end
-
-class PublicController < ApplicationController
-  # Clear inherited breadcrumbs on all actions except :index
-  clear_breadcrumbs except: :index
-  breadcrumb "Public Section"
-end
-```
-
-### Grouping Breadcrumbs
-
-Use `breadcrumb_group` to apply the same `only`/`except` filters to multiple breadcrumbs:
-
-```ruby
-class ArticlesController < ApplicationController
-  # These breadcrumbs only appear on :edit and :update
-  breadcrumb_group only: %i[edit update] do
-    breadcrumb "Articles", :articles_path
-    breadcrumb -> { @article.title }, -> { article_path(@article) }
-    breadcrumb "Edit"
-  end
-end
-```
-
-#### Nested Groups
-
-Groups can be nested. Options are merged intelligently:
-
-- `:only` uses **intersection** (more restrictive)
-- `:except` uses **union** (cumulative exclusions)
-
-```ruby
-class ArticlesController < ApplicationController
-  breadcrumb_group except: :index do
-    breadcrumb "Articles", :articles_path
-
-    breadcrumb_group only: %i[edit update] do
-      # Appears on :edit and :update, but NOT on :index
-      breadcrumb -> { @article.title }, -> { article_path(@article) }
-    end
-  end
-end
-```
-
-#### Overriding Group Options
-
-Individual breadcrumbs can override group options:
-
-```ruby
-breadcrumb_group only: %i[show edit update] do
-  breadcrumb "Details", :article_path      # Appears on :show, :edit, :update
-  breadcrumb "Edit Form", only: :edit      # Appears only on :edit (intersection)
-end
-```
-
-#### Combining Groups with Regular Breadcrumbs
-
-```ruby
-class ArticlesController < ApplicationController
-  breadcrumb "Home", :root_path                          # Always
-
-  breadcrumb_group only: %i[edit update] do
-    breadcrumb "Edit Section", :edit_article_path        # Only on :edit, :update
-  end
-
-  breadcrumb -> { @article.title }, except: :index       # Except :index
-end
-```
-
-### Complete Example
-
-A typical CRUD controller setup:
-
-```ruby
-class ArticlesController < ApplicationController
-  breadcrumb "Articles", :articles_path
-
-  # Show article title on :show, :edit, :update, :destroy
-  breadcrumb_group only: %i[show edit update destroy] do
-    breadcrumb -> { @article.title }, -> { article_path(@article) }
-  end
-
-  # Add "Edit" crumb on :edit and :update
-  breadcrumb "Edit", only: %i[edit update]
-
-  # Different breadcrumb for new articles
-  breadcrumb "New Article", only: %i[new create]
-
-  def show
-    @article = Article.find(params[:id])
-  end
-
-  # ...
-end
-```
-
-**Result:**
-
-| Action   | Breadcrumbs                          |
-|----------|--------------------------------------|
-| index    | Articles                             |
-| show     | Articles / My Article                |
-| edit     | Articles / My Article / Edit         |
-| new      | Articles / New Article               |
-
-## API Reference
-
-### Controller Class Methods
 
 | Method | Description |
 |--------|-------------|
-| `breadcrumb(name, path = nil, **options)` | Declare a breadcrumb |
-| `clear_breadcrumbs(**options)` | Clear inherited breadcrumbs |
-| `breadcrumb_group(**options, &block)` | Group breadcrumbs with shared options |
+| `name` | Display text |
+| `path` | URL (can be nil) |
+| `current?` | `true` if last breadcrumb |
 
-### Options
+### Clearing Breadcrumbs
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `:only` | Show only on these actions | `only: %i[edit update]` |
-| `:except` | Show on all actions except these | `except: :index` |
+#### `clear_breadcrumbs` (class level)
 
-### Dynamic Values
+Prevents inherited blocks from running. Parent blocks are **never executed**:
 
-| Type | Name | Path |
-|------|------|------|
-| String | `"Home"` | `"/path"` |
-| Symbol | `:method_name` | `:path_helper` |
-| Proc | `-> { @model.title }` | `-> { model_path(@model) }` |
+```ruby
+class AdminController < ApplicationController
+  clear_breadcrumbs  # ApplicationController blocks won't run at all
+
+  breadcrumbs do |trail|
+    trail.add "Admin", admin_root_path
+  end
+end
+```
+
+#### `trail.clear` / `breadcrumbs.clear`
+
+Clears the trail after parent blocks have run. Use in a block or in an action:
+
+```ruby
+# In a block
+breadcrumbs do |trail|
+  trail.clear if action_name == "standalone"
+  trail.add "Standalone Page"
+end
+
+# In an action
+def preview
+  breadcrumbs.clear
+  breadcrumbs.add "Preview", preview_path
+end
+```
+
+#### When to use which?
+
+| Method | Parent blocks run? | Use case |
+|--------|-------------------|----------|
+| `clear_breadcrumbs` | No | Controller with completely separate hierarchy |
+| `trail.clear` | Yes | Conditional clearing based on action/state |
+
+### Test Helpers
+
+#### RSpec
+
+Add to your `spec_helper.rb` or `rails_helper.rb`:
+
+```ruby
+require "petit_poucet/test_helpers"
+
+RSpec.configure do |config|
+  config.include PetitPoucet::TestHelpers, type: :controller
+  config.include PetitPoucet::TestHelpers, type: :request
+end
+```
+
+Then in your specs:
+
+```ruby
+it "shows article breadcrumbs" do
+  get article_path(article)
+
+  expect(controller).to have_breadcrumb("Articles")
+  expect(controller).to have_breadcrumbs(["Home", "Articles", "My Article"])
+end
+```
+
+#### Minitest
+
+Add to your `test_helper.rb`:
+
+```ruby
+require "petit_poucet/test_helpers"
+
+class ActionDispatch::IntegrationTest
+  include PetitPoucet::TestHelpers
+end
+```
+
+Then in your tests:
+
+```ruby
+test "shows article breadcrumbs" do
+  get article_path(article)
+
+  assert_breadcrumb "Articles"
+  assert_breadcrumbs ["Home", "Articles", "My Article"]
+  refute_breadcrumb "Admin"
+end
+```
+
+## Complete Example
+
+```ruby
+class ArticlesController < ApplicationController
+  before_action :set_article, only: %i[show edit]
+
+  breadcrumbs do |trail|
+    trail.add "Articles", articles_path
+    trail.add @article.title, article_path(@article) if @article
+  end
+
+  def edit
+    breadcrumbs.add "Edit"
+  end
+end
+```
+
+| Action | Breadcrumbs                  |
+|--------|------------------------------|
+| index  | Articles                     |
+| show   | Articles / My Article        |
+| edit   | Articles / My Article / Edit |
 
 ## Requirements
 
-- Ruby >= 3.0
+- Ruby >= 3.2
 - Rails >= 7.0
 
 ## License

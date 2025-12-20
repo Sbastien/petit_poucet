@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
                        'controller inheritance, and flexible view rendering.'
   spec.homepage      = 'https://github.com/Sbastien/petit_poucet'
   spec.license       = 'MIT'
-  spec.required_ruby_version = '>= 3.0'
+  spec.required_ruby_version = '>= 3.2'
 
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = spec.homepage

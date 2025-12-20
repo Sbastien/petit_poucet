@@ -1,51 +1,20 @@
 # frozen_string_literal: true
 
 module PetitPoucet
-  class Crumb
-    attr_reader :name, :path
+  # Immutable value object representing a single breadcrumb.
+  #
+  # @example
+  #   crumb = Crumb.new("Home", "/")
+  #   crumb.name # => "Home"
+  #   crumb.path # => "/"
+  #
+  # @raise [ArgumentError] if name is nil or empty
+  #
+  Crumb = Data.define(:name, :path) do
+    def initialize(name:, path: nil)
+      raise ArgumentError, 'name cannot be nil or empty' if name.nil? || name.to_s.strip.empty?
 
-    def initialize(name = nil, path = nil, clear: false, **options)
-      @name = name
-      @clear = clear
-
-      if path.is_a?(Hash)
-        options = path
-        @path = nil
-      else
-        @path = path
-      end
-
-      @only_actions = options[:only] && Array(options[:only]).map(&:to_s)
-      @except_actions = options[:except] && Array(options[:except]).map(&:to_s)
-    end
-
-    def clear?
-      @clear
-    end
-
-    def resolve_name(context)
-      case name
-      when Proc then context.instance_exec(&name)
-      when Symbol then context.public_send(name)
-      else name.to_s
-      end
-    end
-
-    def resolve_path(context)
-      return nil if path.nil?
-
-      case path
-      when Proc then context.instance_exec(&path)
-      when Symbol then context.public_send(path)
-      else path.to_s
-      end
-    end
-
-    def applies_to_action?(action_name)
-      return false if @only_actions && !@only_actions.include?(action_name)
-      return false if @except_actions&.include?(action_name)
-
-      true
+      super(name: -name.to_s, path: path&.then { -_1.to_s })
     end
   end
 end

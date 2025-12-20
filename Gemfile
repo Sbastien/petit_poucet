@@ -9,6 +9,7 @@ gem 'activesupport', "~> #{rails_version}.0"
 gemspec
 
 group :development, :test do
-  gem 'rspec', '~> 3.12'
-  gem 'rubocop', '~> 1.60', require: false
+  gem 'rspec', '~> 3.13'
+  gem 'rubocop', '~> 1.80', require: false
+  gem 'simplecov', require: false
 end

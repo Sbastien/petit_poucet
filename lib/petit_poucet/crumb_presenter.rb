@@ -1,28 +1,17 @@
 # frozen_string_literal: true
 
 module PetitPoucet
-  # Presenter for a single breadcrumb in views
+  # View presenter for a breadcrumb with current state.
   #
   # @example
-  #   crumb.name      # => "Home"
-  #   crumb.path      # => "/"
-  #   crumb.current?  # => false
+  #   crumb.name     # => "Home"
+  #   crumb.path     # => "/"
+  #   crumb.current? # => false
   #
-  class CrumbPresenter
-    attr_reader :name, :path
+  CrumbPresenter = Data.define(:name, :path, :current) do
+    def initialize(name:, path:, current:) = super
 
-    def initialize(name:, path:, current:)
-      @name = name
-      @path = path
-      @current = current
-    end
-
-    def current?
-      @current
-    end
-
-    def to_s
-      name
-    end
+    def current? = current
+    def to_s = name
   end
 end
