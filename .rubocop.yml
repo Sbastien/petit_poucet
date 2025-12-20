@@ -1,23 +1,25 @@
 AllCops:
-  TargetRubyVersion: 3.0
+  TargetRubyVersion: 3.2
   NewCops: enable
   SuggestExtensions: false
 
-Style/Documentation:
+Lint/UselessMethodDefinition:
   Enabled: false
-
-Metrics/MethodLength:
-  Max: 15
-
-Metrics/AbcSize:
-  Max: 20
-
-Metrics/BlockLength:
-  Exclude:
-    - "spec/**/*"
 
 Lint/UselessAccessModifier:
   ContextCreatingMethods:
     - class_methods
   MethodCreatingMethods:
     - included
+
+Naming/PredicatePrefix:
+  AllowedMethods:
+    - have_breadcrumb
+    - have_breadcrumbs
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+
+Style/Documentation:
+  Enabled: false
