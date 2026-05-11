@@ -1,0 +1,21 @@
+<%#
+  Default breadcrumbs partial.
+
+  Override by running `rails generate petit_poucet:views`, which copies this
+  file to `app/views/petit_poucet/_breadcrumbs.html.erb` for editing.
+%>
+<% if each_breadcrumb.any? %>
+<nav aria-label="<%= t('petit_poucet.aria_label', default: 'Breadcrumb') %>" class="petit-poucet-breadcrumbs">
+  <ol>
+    <% each_breadcrumb do |crumb| %>
+      <% if crumb.current? %>
+      <li aria-current="page"><%= crumb.name %></li>
+      <% elsif crumb.path.nil? %>
+      <li><%= crumb.name %></li>
+      <% else %>
+      <li><%= link_to crumb.name, crumb.path %></li>
+      <% end %>
+    <% end %>
+  </ol>
+</nav>
+<% end %>

@@ -4,7 +4,9 @@ module PetitPoucet
   class Railtie < Rails::Railtie
     initializer 'petit_poucet.configure' do
       ActiveSupport.on_load(:action_controller) do
-        include PetitPoucet::ControllerMethods
+        include PetitPoucet::Controller
+
+        append_view_path File.expand_path('views', __dir__)
       end
 
       ActiveSupport.on_load(:action_view) do

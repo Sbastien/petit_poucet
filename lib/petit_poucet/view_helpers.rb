@@ -2,64 +2,68 @@
 
 module PetitPoucet
   module ViewHelpers
-    # Iterate over breadcrumbs with full control over rendering
-    #
     # @yield [crumb] Block called for each breadcrumb
-    # @yieldparam crumb [CrumbPresenter] Presenter with name, path, current?
-    # @return [Array<CrumbPresenter>] All breadcrumbs if no block given
-    #
-    # @example Without block
-    #   breadcrumb_trail.each { |crumb| ... }
-    #
-    # @example With block
-    #   breadcrumb_trail do |crumb|
-    #     concat link_to(crumb.name, crumb.path) unless crumb.current?
-    #   end
-    #
-    def breadcrumb_trail(&block)
-      crumbs = breadcrumbs.each_with_index.map do |crumb, index|
-        CrumbPresenter.new(
-          name: crumb[:name],
-          path: crumb[:path],
-          current: index == breadcrumbs.size - 1
-        )
+    # @yieldparam crumb [Presenter] Presenter with name, path, current?
+    # @return [Array<Presenter>] All breadcrumbs if no block given
+    def each_breadcrumb(&)
+      ActiveSupport::Notifications.instrument('petit_poucet.render', size: breadcrumbs.size) do
+        source = breadcrumbs
+        crumbs = source.each_with_index.map do |crumb, index|
+          Presenter.new(name: crumb.name, path: crumb.path, current: index == source.size - 1)
+        end
+
+        block_given? ? crumbs.each(&) : crumbs
       end
-
-      return crumbs unless block_given?
-
-      crumbs.each(&block)
     end
 
-    # Simple default renderer for breadcrumbs
-    #
-    # @param options [Hash] Rendering options
-    # @option options [String] :class CSS class for the container ('breadcrumb')
-    # @option options [String] :separator Separator between crumbs (' / ')
-    #
-    # @return [ActiveSupport::SafeBuffer, nil] HTML or nil if no breadcrumbs
-    #
-    # @example Default rendering
-    #   render_breadcrumbs
-    #   # => <nav class="breadcrumb">Home / Articles / My Article</nav>
-    #
-    # @example Custom options
-    #   render_breadcrumbs(class: 'custom-breadcrumb', separator: ' > ')
-    #
-    def render_breadcrumbs(options = {})
-      return if breadcrumbs.empty?
+    # @return [Array<String>]
+    def breadcrumb_names = breadcrumbs.names
 
-      css_class = options[:class] || 'breadcrumb'
-      separator = options[:separator] || ' / '
+    # @return [Breadcrumb, nil] the last breadcrumb (the current page), or nil if empty
+    def current_breadcrumb = breadcrumbs.last
 
-      items = breadcrumb_trail.map do |crumb|
-        if crumb.path.present? && !crumb.current?
-          link_to(crumb.name, crumb.path)
-        else
-          crumb.name
+    # @param separator [String] separator between crumbs
+    # @param reverse [Boolean] reverse order, current page first
+    # @return [String]
+    def breadcrumb_title(separator: ' | ', reverse: false)
+      names = breadcrumb_names
+      names = names.reverse if reverse
+      names.join(separator)
+    end
+
+    # @param base_url [String, nil] base URL for absolute paths
+    # @return [ActiveSupport::SafeBuffer, nil] script tag or nil if empty
+    def breadcrumb_json_ld(base_url: nil)
+      crumbs = each_breadcrumb
+      return if crumbs.empty?
+
+      base_url ||= request&.base_url if respond_to?(:request)
+      json_ld = build_json_ld(crumbs, base_url)
+      content_tag(:script, ERB::Util.json_escape(json_ld.to_json).html_safe, type: 'application/ld+json')
+    end
+
+    private
+
+    def build_json_ld(crumbs, base_url)
+      {
+        '@context' => 'https://schema.org',
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => crumbs.each_with_index.map do |crumb, index|
+          url = resolve_url(crumb.path, base_url)
+
+          { '@type' => 'ListItem', 'position' => index + 1, 'name' => crumb.name }.tap do |item|
+            item['item'] = url if url
+          end
         end
-      end
+      }
+    end
 
-      content_tag(:nav, safe_join(items, separator.html_safe), class: css_class)
+    def resolve_url(path, base_url)
+      return if path.nil?
+      return path if path.start_with?('http://', 'https://')
+      return "#{base_url}#{path}" if base_url && path.start_with?('/')
+
+      path
     end
   end
 end

@@ -1,127 +1,265 @@
-# Petit Poucet 🥖
+# Petit Poucet
 
 [![gem version](https://img.shields.io/gem/v/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
 [![gem downloads](https://img.shields.io/gem/dt/petit_poucet.svg)](https://rubygems.org/gems/petit_poucet)
 [![ci](https://img.shields.io/github/actions/workflow/status/Sbastien/petit_poucet/ci.yml?branch=main&label=ci)](https://github.com/Sbastien/petit_poucet/actions/workflows/ci.yml)
+[![coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/Sbastien/petit_poucet)
 [![license](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![ruby](https://img.shields.io/badge/ruby-%3E%3D%203.0-red.svg)](https://www.ruby-lang.org/)
+[![ruby](https://img.shields.io/badge/ruby-%3E%3D%203.2-red.svg)](https://www.ruby-lang.org/)
 [![rails](https://img.shields.io/badge/rails-%3E%3D%207.0-red.svg)](https://rubyonrails.org/)
 
 ***Breadcrumbs for Rails, the simple way.***
 
-A lightweight, zero-dependency breadcrumbs gem for Ruby on Rails. Simple DSL, controller inheritance, and full view customization — help your users find their way back, one pebble at a time.
+A lightweight breadcrumbs gem for Ruby on Rails: block-based API, controller inheritance, default partial, and full view customization.
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Installation](#installation)
+- [Defining Breadcrumbs](#defining-breadcrumbs)
+  - [In Controllers](#in-controllers)
+  - [Dynamic breadcrumbs in actions](#dynamic-breadcrumbs-in-actions)
+  - [Inheritance](#inheritance)
+- [Rendering](#rendering)
+  - [Default Partial](#default-partial)
+  - [ViewComponent](#viewcomponent)
+  - [Phlex](#phlex)
+  - [Custom Markup](#custom-markup)
+  - [Page Title](#page-title)
+  - [JSON-LD for SEO](#json-ld-for-seo)
+- [Testing](#testing)
+- [API Reference](#api-reference)
+- [Upgrading from v1.x](#upgrading-from-v1x)
+- [Requirements](#requirements)
+- [Type Signatures](#type-signatures)
+
+## Quick Start
+
+```ruby
+# Gemfile
+gem "petit_poucet", "~> 2.0"
+```
+
+```bash
+$ bundle install
+$ rails generate petit_poucet:install
+```
+
+The generator copies the partial to `app/views/petit_poucet/_breadcrumbs.html.erb` and prints next steps.
+
+```ruby
+# app/controllers/articles_controller.rb
+class ArticlesController < ApplicationController
+  breadcrumbs "Articles", :articles_path
+
+  def show
+    @article = Article.find(params[:id])
+    breadcrumbs.add @article.title
+  end
+end
+```
+
+```erb
+<%# app/views/layouts/application.html.erb %>
+<%= render "petit_poucet/breadcrumbs" %>
+```
+
+That's it. You get an ARIA-compliant `<nav>` with your breadcrumbs.
 
 ## Features
 
-- 🪶 **Zero dependencies** — only Rails required
-- 🎯 **Simple DSL** — declare breadcrumbs in one line
-- 🔗 **Controller inheritance** — child controllers inherit parent breadcrumbs
-- 🎨 **Flexible rendering** — use the built-in helper or full custom views
-- ⚡ **Lazy evaluation** — lambdas for dynamic names and paths
-- 🎛️ **Action filtering** — `only` and `except` options for fine control
-- 📦 **Grouping** — apply filters to multiple breadcrumbs at once
+- **Declarative class-level API**: `breadcrumbs "Name", :path` registered as a `before_action`
+- **Runtime mutation**: `breadcrumbs.add`, `.insert_before`, `.replace`, `.clear` from any action
+- **Rich collection class**: manipulation methods (`insert_after`, `find_by_name`, `exists?`, ...) and `Enumerable`
+- **Controller inheritance**: child controllers inherit parent breadcrumbs
+- **Default partial**: ARIA-compliant out of the box, override with a generator
+- **SEO ready**: JSON-LD structured data helper
+- **Test helpers**: RSpec matchers and Minitest assertions included
+- **Thin layer over Rails**: uses `before_action` under the hood, no custom callback machinery
 
 ## Installation
 
 ```ruby
-gem "petit_poucet"
+gem "petit_poucet", "~> 2.0"
 ```
 
-## Usage
+```bash
+bundle install
+```
 
-### Controller
+The gem auto-loads into `ActionController::Base` and `ActionView::Base` via a Railtie. No initializer required.
+
+## Defining Breadcrumbs
+
+### In Controllers
+
+Declare static breadcrumbs at the class level. Each call registers a `before_action`:
 
 ```ruby
-class ApplicationController < ActionController::Base
-  breadcrumb -> { t("home") }, :root_path
-end
-
 class ArticlesController < ApplicationController
-  breadcrumb "Articles", :articles_path
-  breadcrumb -> { @article.title }, only: [:show, :edit, :update]
+  breadcrumbs "Articles", :articles_path
+  breadcrumbs "Admin",   :admin_path,    only: :admin_section
+  breadcrumbs "Premium", :premium_path,  if: -> { current_user&.premium? }
+end
+```
+
+The path can be:
+
+- A **String**: used verbatim as the URL
+- A **Symbol**: sent to the controller (e.g. `:root_path` calls `root_path`)
+- A **Proc**: evaluated in the controller context (e.g. `-> { article_path(@article) }`)
+- `nil`: for the current page (no link in the default partial)
+
+Filter options (`only:`, `except:`, `if:`, `unless:`) pass through to `before_action`.
+
+### Dynamic breadcrumbs in actions
+
+For breadcrumbs that depend on instance variables, mutate the collection from inside the action:
+
+```ruby
+class ArticlesController < ApplicationController
+  breadcrumbs "Articles", :articles_path
 
   def show
     @article = Article.find(params[:id])
+    breadcrumbs.add @article.title, article_path(@article)
   end
 end
 ```
 
-### DSL Options
-
-```ruby
-# Static
-breadcrumb "Dashboard", :dashboard_path
-
-# Dynamic name
-breadcrumb -> { t("breadcrumbs.home") }, :root_path
-
-# Dynamic path
-breadcrumb "Profile", -> { user_path(current_user) }
-
-# Action filtering
-breadcrumb "Edit", :edit_article_path, only: [:edit, :update]
-breadcrumb "Details", :articles_path, except: :index
-
-# Action filtering without path
-breadcrumb "Current", only: :show
-
-# No link (current page)
-breadcrumb -> { @article.title }
-```
-
-### Runtime Breadcrumbs
-
-You can also add breadcrumbs at runtime in actions or `before_action` callbacks:
+You can also use a block to group multiple mutations:
 
 ```ruby
 def show
   @article = Article.find(params[:id])
-  breadcrumb @article.title, article_path(@article)
-  breadcrumb "Details"  # No link
+
+  breadcrumbs do |crumbs|
+    crumbs.add @article.section.name, section_path(@article.section)
+    crumbs.add @article.title, article_path(@article)
+  end
 end
 ```
 
-#### Combining Declarative and Runtime
-
-Use declarative breadcrumbs for general structure and runtime for action-specific additions:
+For breadcrumbs shared across multiple actions, extract a `before_action` helper:
 
 ```ruby
 class ArticlesController < ApplicationController
-  breadcrumb "Articles", :articles_path
+  before_action :set_article,             only: %i[show edit]
+  before_action :add_article_breadcrumb,  only: %i[show edit]
 
-  def show
-    @article = Article.find(params[:id])
-    breadcrumb @article.title, article_path(@article)
-    breadcrumb @article.category.name, category_path(@article.category) if @article.category
-  end
+  private
 
-  def edit
-    @article = Article.find(params[:id])
-    breadcrumb @article.title, article_path(@article)
-    breadcrumb "Edit"
+  def set_article = @article = Article.find(params[:id])
+  def add_article_breadcrumb = breadcrumbs.add @article.title, article_path(@article)
+end
+```
+
+### Inheritance
+
+Child controllers inherit parent declarations and add their own on top:
+
+```ruby
+class ApplicationController < ActionController::Base
+  breadcrumbs "Home", :root_path
+end
+
+class ArticlesController < ApplicationController
+  breadcrumbs "Articles", :articles_path
+end
+# Result: Home / Articles
+```
+
+To start fresh in a namespace (e.g. admin), clear at runtime:
+
+```ruby
+class AdminController < ApplicationController
+  before_action :reset_breadcrumbs
+
+  private
+  def reset_breadcrumbs
+    breadcrumbs.clear
+    breadcrumbs.add "Admin", admin_root_path
   end
 end
-# show → Articles → My Article → Tech (if category exists)
-# edit → Articles → My Article → Edit
 ```
 
-### View Rendering
+## Rendering
 
-#### Simple (built-in helper)
+### Default Partial
+
+The gem ships an ARIA-compliant partial. Render it anywhere:
 
 ```erb
-<%= render_breadcrumbs %>
-<%# => <nav class="breadcrumb"><a href="/">Home</a> / Articles / My Article</nav> %>
-
-<%= render_breadcrumbs(class: "my-breadcrumb", separator: " > ") %>
+<%= render "petit_poucet/breadcrumbs" %>
 ```
 
-#### Custom (full control)
+To customize the markup, copy the partial into your app:
+
+```bash
+rails generate petit_poucet:views
+# create  app/views/petit_poucet/_breadcrumbs.html.erb
+```
+
+To translate the `aria-label` for a non-English app, set the `petit_poucet.aria_label` key in your locale file:
+
+```yaml
+# config/locales/fr.yml
+fr:
+  petit_poucet:
+    aria_label: "Fil d'Ariane"
+```
+
+### Themes
+
+The install/views generators ship Tailwind and Bootstrap variants:
+
+```bash
+rails generate petit_poucet:install --theme=tailwind
+rails generate petit_poucet:install --theme=bootstrap
+```
+
+The default theme uses minimal, neutral classes. Themed variants are starting points: copy them and edit freely.
+
+### ViewComponent
+
+If your app uses [ViewComponent](https://viewcomponent.org), render via the bundled component:
+
+```erb
+<%= render(PetitPoucet::BreadcrumbsComponent.new) %>
+```
+
+The component reads from `helpers.breadcrumbs` by default. Pass an explicit `crumbs:` argument to override:
+
+```erb
+<%= render(PetitPoucet::BreadcrumbsComponent.new(crumbs: my_breadcrumbs)) %>
+```
+
+The component is loaded only when `ViewComponent::Base` is defined, so apps that don't use ViewComponent are unaffected.
+
+### Phlex
+
+If your app uses [Phlex](https://www.phlex.fun), render the bundled component:
+
+```ruby
+class ArticlePage < Phlex::HTML
+  def view_template
+    render(PetitPoucet::PhlexBreadcrumbs.new(crumbs: helpers.breadcrumbs))
+    # ... rest of the page
+  end
+end
+```
+
+The collection is passed explicitly because Phlex components don't have implicit access to controller helpers.
+
+### Custom Markup
+
+For full control, iterate with `each_breadcrumb`. Each crumb exposes `name`, `path`, and `current?`:
 
 ```erb
 <nav aria-label="Breadcrumb">
   <ol>
-    <% breadcrumb_trail do |crumb| %>
+    <% each_breadcrumb do |crumb| %>
       <li>
         <% if crumb.current? %>
           <%= crumb.name %>
@@ -134,167 +272,151 @@ end
 </nav>
 ```
 
-### CrumbPresenter
+### Page Title
 
-| Method     | Description              |
-|------------|--------------------------|
-| `name`     | Display text             |
-| `path`     | URL (can be nil)         |
-| `current?` | `true` if last breadcrumb |
-| `to_s`     | Returns `name`           |
+```erb
+<title><%= breadcrumb_title(reverse: true) %></title>
+<%# => "My Article | Articles | Home" %>
+```
 
-### Clearing Inherited Breadcrumbs
+Customize separator and order:
+
+```erb
+<%= breadcrumb_title(separator: " · ", reverse: false) %>
+```
+
+### JSON-LD for SEO
+
+```erb
+<%= breadcrumb_json_ld %>
+```
+
+Outputs a `<script type="application/ld+json">` tag with [schema.org BreadcrumbList](https://schema.org/BreadcrumbList) data, ready for Google rich results. Pass `base_url:` to make relative paths absolute:
+
+```erb
+<%= breadcrumb_json_ld(base_url: "https://example.com") %>
+```
+
+## Testing
+
+### RSpec
 
 ```ruby
-class AdminController < ApplicationController
-  clear_breadcrumbs
-  breadcrumb "Admin", :admin_root_path
+# spec/rails_helper.rb
+require "petit_poucet/test_helpers"
+
+RSpec.configure do |config|
+  config.include PetitPoucet::TestHelpers, type: :controller
+  config.include PetitPoucet::TestHelpers, type: :request
 end
 ```
 
-#### Conditional Clearing
-
-Clear inherited breadcrumbs only for specific actions:
-
 ```ruby
-class Admin::ArticlesController < AdminController
-  # Start fresh on :new and :create actions only
-  clear_breadcrumbs only: %i[new create]
-  breadcrumb "New Article", only: %i[new create]
-end
+it "shows article breadcrumbs" do
+  get article_path(article)
 
-class PublicController < ApplicationController
-  # Clear inherited breadcrumbs on all actions except :index
-  clear_breadcrumbs except: :index
-  breadcrumb "Public Section"
+  expect(controller).to have_breadcrumb("Articles")
+  expect(controller).to have_breadcrumbs(["Home", "Articles", "My Article"])
 end
 ```
 
-### Grouping Breadcrumbs
-
-Use `breadcrumb_group` to apply the same `only`/`except` filters to multiple breadcrumbs:
+### Minitest
 
 ```ruby
-class ArticlesController < ApplicationController
-  # These breadcrumbs only appear on :edit and :update
-  breadcrumb_group only: %i[edit update] do
-    breadcrumb "Articles", :articles_path
-    breadcrumb -> { @article.title }, -> { article_path(@article) }
-    breadcrumb "Edit"
-  end
+# test/test_helper.rb
+require "petit_poucet/test_helpers"
+
+class ActionDispatch::IntegrationTest
+  include PetitPoucet::TestHelpers
 end
 ```
 
-#### Nested Groups
-
-Groups can be nested. Options are merged intelligently:
-
-- `:only` uses **intersection** (more restrictive)
-- `:except` uses **union** (cumulative exclusions)
-
 ```ruby
-class ArticlesController < ApplicationController
-  breadcrumb_group except: :index do
-    breadcrumb "Articles", :articles_path
+test "shows article breadcrumbs" do
+  get article_path(article)
 
-    breadcrumb_group only: %i[edit update] do
-      # Appears on :edit and :update, but NOT on :index
-      breadcrumb -> { @article.title }, -> { article_path(@article) }
-    end
-  end
+  assert_breadcrumb "Articles"
+  assert_breadcrumbs ["Home", "Articles", "My Article"]
+  refute_breadcrumb "Admin"
 end
 ```
-
-#### Overriding Group Options
-
-Individual breadcrumbs can override group options:
-
-```ruby
-breadcrumb_group only: %i[show edit update] do
-  breadcrumb "Details", :article_path      # Appears on :show, :edit, :update
-  breadcrumb "Edit Form", only: :edit      # Appears only on :edit (intersection)
-end
-```
-
-#### Combining Groups with Regular Breadcrumbs
-
-```ruby
-class ArticlesController < ApplicationController
-  breadcrumb "Home", :root_path                          # Always
-
-  breadcrumb_group only: %i[edit update] do
-    breadcrumb "Edit Section", :edit_article_path        # Only on :edit, :update
-  end
-
-  breadcrumb -> { @article.title }, except: :index       # Except :index
-end
-```
-
-### Complete Example
-
-A typical CRUD controller setup:
-
-```ruby
-class ArticlesController < ApplicationController
-  breadcrumb "Articles", :articles_path
-
-  # Show article title on :show, :edit, :update, :destroy
-  breadcrumb_group only: %i[show edit update destroy] do
-    breadcrumb -> { @article.title }, -> { article_path(@article) }
-  end
-
-  # Add "Edit" crumb on :edit and :update
-  breadcrumb "Edit", only: %i[edit update]
-
-  # Different breadcrumb for new articles
-  breadcrumb "New Article", only: %i[new create]
-
-  def show
-    @article = Article.find(params[:id])
-  end
-
-  # ...
-end
-```
-
-**Result:**
-
-| Action   | Breadcrumbs                          |
-|----------|--------------------------------------|
-| index    | Articles                             |
-| show     | Articles / My Article                |
-| edit     | Articles / My Article / Edit         |
-| new      | Articles / New Article               |
 
 ## API Reference
 
-### Controller Class Methods
+### Block Methods
 
-| Method | Description |
-|--------|-------------|
-| `breadcrumb(name, path = nil, **options)` | Declare a breadcrumb |
-| `clear_breadcrumbs(**options)` | Clear inherited breadcrumbs |
-| `breadcrumb_group(**options, &block)` | Group breadcrumbs with shared options |
+Inside a `breadcrumbs` block, the yielded object exposes:
 
-### Options
+| Method                               | Description                          |
+| ------------------------------------ | ------------------------------------ |
+| `add(name, path = nil)`              | Append breadcrumb to end             |
+| `prepend(name, path = nil)`          | Insert breadcrumb at beginning       |
+| `insert_after(target, name, path)`   | Insert after named breadcrumb        |
+| `insert_before(target, name, path)`  | Insert before named breadcrumb       |
+| `replace(target, name, path)`        | Replace breadcrumb by name           |
+| `remove(name)`                       | Remove breadcrumb by name            |
+| `find_by_name(name)`                 | Find breadcrumb by name              |
+| `exists?(name)`                      | Check if breadcrumb exists           |
+| `clear`                              | Remove all breadcrumbs               |
+| `size`, `empty?`, `each`, `map`, ... | Standard `Enumerable` methods        |
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| `:only` | Show only on these actions | `only: %i[edit update]` |
-| `:except` | Show on all actions except these | `except: :index` |
+### View Helpers
 
-### Dynamic Values
+| Helper                                     | Returns                                                     |
+| ------------------------------------------ | ----------------------------------------------------------- |
+| `each_breadcrumb`                          | Yields each crumb (`name`, `path`, `current?`), or array    |
+| `breadcrumb_names`                         | Array of names, e.g. `["Home", "Articles"]`                 |
+| `current_breadcrumb`                       | The last `Breadcrumb` (the current page), or `nil`          |
+| `breadcrumb_title(separator:, reverse:)`   | Joined string for `<title>` tag                             |
+| `breadcrumb_json_ld(base_url:)`            | `<script>` tag with schema.org BreadcrumbList JSON-LD       |
 
-| Type | Name | Path |
-|------|------|------|
-| String | `"Home"` | `"/path"` |
-| Symbol | `:method_name` | `:path_helper` |
-| Proc | `-> { @model.title }` | `-> { model_path(@model) }` |
+## Instrumentation
+
+Petit Poucet emits an `ActiveSupport::Notifications` event each time `each_breadcrumb` is invoked:
+
+```ruby
+ActiveSupport::Notifications.subscribe('petit_poucet.render') do |*, payload|
+  Rails.logger.debug("Rendered #{payload[:size]} breadcrumbs")
+end
+```
+
+The payload includes `:size`, the number of breadcrumbs in the collection.
+
+## Upgrading from v1.x
+
+For most controllers, migration is renaming `breadcrumb` (singular) to `breadcrumbs` (plural):
+
+```ruby
+# v1.x
+breadcrumb "Articles", :articles_path
+
+# v2.0
+breadcrumbs "Articles", :articles_path
+```
+
+Lambdas as path arguments still work (now in positional form):
+
+```ruby
+# v1.x
+breadcrumb -> { @article.title }, only: :show
+
+# v2.0, mutate from the action
+def show
+  @article = Article.find(params[:id])
+  breadcrumbs.add @article.title, article_path(@article)
+end
+```
+
+Removed helpers (`breadcrumb_group`, `render_breadcrumbs`, `clear_breadcrumbs`) and their replacements are documented in [CHANGELOG](CHANGELOG.md).
 
 ## Requirements
 
-- Ruby >= 3.0
+- Ruby >= 3.2
 - Rails >= 7.0
+
+## Type Signatures
+
+RBS signatures for the public API are bundled in `sig/petit_poucet.rbs`. Apps using Steep or TypeProf get autocomplete and type checking out of the box.
 
 ## License
 
@@ -306,6 +428,6 @@ MIT
 
 > *Le petit Pouçet les laissoit crier, sçachant bien par où il reviendroit à la maison ; car en marchant il avoit laissé tomber le long du chemin les petits cailloux blancs qu'il avoit dans ses poches.*
 >
-> — Charles Perrault, *Le Petit Poucet* (1697)
+> Charles Perrault, *Le Petit Poucet* (1697)
 
-Named after the French fairy tale "Le Petit Poucet" (Hop-o'-My-Thumb), where a clever boy leaves a trail of pebbles to find his way home.
+Named after the French fairy tale "Le Petit Poucet" (Hop-o'-My-Thumb), where a clever boy leaves pebbles along the way to find his way home.
