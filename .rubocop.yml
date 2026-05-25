@@ -1,23 +1,47 @@
 AllCops:
-  TargetRubyVersion: 3.0
+  TargetRubyVersion: 3.2
   NewCops: enable
   SuggestExtensions: false
 
-Style/Documentation:
+Lint/UselessMethodDefinition:
   Enabled: false
-
-Metrics/MethodLength:
-  Max: 15
-
-Metrics/AbcSize:
-  Max: 20
-
-Metrics/BlockLength:
-  Exclude:
-    - "spec/**/*"
 
 Lint/UselessAccessModifier:
   ContextCreatingMethods:
     - class_methods
   MethodCreatingMethods:
     - included
+
+Naming/PredicatePrefix:
+  AllowedMethods:
+    - have_breadcrumb
+    - have_breadcrumbs
+    - have_breadcrumb_text
+    - have_breadcrumb_list
+  Exclude:
+    - lib/petit_poucet/breadcrumbs_component.rb
+    - lib/petit_poucet/phlex_breadcrumbs.rb
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false

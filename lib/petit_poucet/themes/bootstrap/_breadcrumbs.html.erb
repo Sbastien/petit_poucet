@@ -1,0 +1,20 @@
+<%#
+  Bootstrap 5 breadcrumbs partial.
+
+  Drop into `app/views/petit_poucet/_breadcrumbs.html.erb`. Edit freely.
+%>
+<% if each_breadcrumb.any? %>
+<nav aria-label="<%= t('petit_poucet.aria_label', default: 'Breadcrumb') %>">
+  <ol class="breadcrumb">
+    <% each_breadcrumb do |crumb| %>
+      <% if crumb.current? %>
+      <li class="breadcrumb-item active" aria-current="page"><%= crumb.name %></li>
+      <% elsif crumb.path.nil? %>
+      <li class="breadcrumb-item"><%= crumb.name %></li>
+      <% else %>
+      <li class="breadcrumb-item"><%= link_to crumb.name, crumb.path %></li>
+      <% end %>
+    <% end %>
+  </ol>
+</nav>
+<% end %>

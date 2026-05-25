@@ -1,0 +1,113 @@
+# RBS type signatures for the PetitPoucet public API.
+# Compatible with Steep and TypeProf.
+
+module PetitPoucet
+  VERSION: String
+
+  # Immutable value object representing a single breadcrumb.
+  #
+  # Built on Ruby's Data class. Keyword constructor, frozen, value equality.
+  class Breadcrumb < Data
+    attr_reader name: String
+    attr_reader path: String?
+
+    def self.new: (name: String, ?path: String?) -> Breadcrumb
+
+    def ==: (untyped other) -> bool
+    def eql?: (untyped other) -> bool
+    def hash: () -> Integer
+    def to_h: () -> Hash[Symbol, untyped]
+    def inspect: () -> String
+    def deconstruct: () -> Array[untyped]
+    def deconstruct_keys: (Array[Symbol]? keys) -> Hash[Symbol, untyped]
+  end
+
+  # Ordered, mutable collection of Breadcrumb objects.
+  class Breadcrumbs
+    include Enumerable[Breadcrumb]
+
+    def initialize: () -> void
+
+    # Append a breadcrumb at the end.
+    def add: (String name, ?String? path) -> Breadcrumbs
+
+    # Prepend a breadcrumb at the beginning.
+    def prepend: (String name, ?String? path) -> Breadcrumbs
+
+    # Insert a breadcrumb immediately after the named target.
+    # No-op if target is not found.
+    def insert_after: (String target_name, String name, ?String? path) -> Breadcrumbs
+
+    # Insert a breadcrumb immediately before the named target.
+    # No-op if target is not found.
+    def insert_before: (String target_name, String name, ?String? path) -> Breadcrumbs
+
+    # Replace an existing breadcrumb by name.
+    # No-op if target is not found.
+    def replace: (String target_name, String name, ?String? path) -> Breadcrumbs
+
+    # Remove all breadcrumbs with the given name.
+    def remove: (String name) -> Breadcrumbs
+
+    # Return true if a breadcrumb with the given name exists.
+    def exists?: (String name) -> bool
+
+    # Return the breadcrumb with the given name, or nil.
+    def find_by_name: (String name) -> Breadcrumb?
+
+    # Remove all breadcrumbs from the collection.
+    def clear: () -> Breadcrumbs
+
+    # Iterate over each breadcrumb. Returns an Enumerator when no block given.
+    def each: () { (Breadcrumb) -> void } -> Breadcrumbs
+            | () -> Enumerator[Breadcrumb, Breadcrumbs]
+
+    # Number of breadcrumbs in the collection.
+    def size: () -> Integer
+    alias length size
+
+    # True when the collection contains no breadcrumbs.
+    def empty?: () -> bool
+
+    # Return the last breadcrumb, the last +count+ breadcrumbs, or nil when empty.
+    def last: () -> Breadcrumb?
+            | (Integer count) -> Array[Breadcrumb]
+
+    # Return the breadcrumb at the given index, or nil.
+    def []: (Integer index) -> Breadcrumb?
+
+    # Return an array of breadcrumb names.
+    def names: () -> Array[String]
+
+    # Return a copy of the internal array.
+    def to_a: () -> Array[Breadcrumb]
+
+    def ==: (untyped other) -> bool
+    def inspect: () -> String
+  end
+
+  # View presenter wrapping a single breadcrumb with current-page state.
+  #
+  # Built on Ruby's Data class. Keyword constructor, frozen, value equality.
+  class Presenter < Data
+    attr_reader name: String
+    attr_reader path: String?
+    attr_reader current: bool
+
+    def self.new: (name: String, path: String?, current: bool) -> Presenter
+
+    # True when this presenter represents the current page.
+    def current?: () -> bool
+
+    # Returns the breadcrumb name (delegates to-s).
+    def to_s: () -> String
+
+    def ==: (untyped other) -> bool
+    def eql?: (untyped other) -> bool
+    def hash: () -> Integer
+    def to_h: () -> Hash[Symbol, untyped]
+    def inspect: () -> String
+    def deconstruct: () -> Array[untyped]
+    def deconstruct_keys: (Array[Symbol]? keys) -> Hash[Symbol, untyped]
+  end
+end

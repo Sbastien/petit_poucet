@@ -1,0 +1,23 @@
+<%#
+  Tailwind breadcrumbs partial.
+
+  Drop into `app/views/petit_poucet/_breadcrumbs.html.erb`. Edit freely.
+%>
+<% if each_breadcrumb.any? %>
+<nav aria-label="<%= t('petit_poucet.aria_label', default: 'Breadcrumb') %>" class="flex">
+  <ol class="flex items-center space-x-2 text-sm text-gray-500">
+    <% each_breadcrumb do |crumb| %>
+      <% if crumb.current? %>
+      <li class="text-gray-900 font-medium" aria-current="page"><%= crumb.name %></li>
+      <% elsif crumb.path.nil? %>
+      <li><%= crumb.name %></li>
+      <% else %>
+      <li>
+        <%= link_to crumb.name, crumb.path, class: "hover:text-gray-700" %>
+        <span class="ml-2 text-gray-400" aria-hidden="true">/</span>
+      </li>
+      <% end %>
+    <% end %>
+  </ol>
+</nav>
+<% end %>
